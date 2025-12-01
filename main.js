@@ -13,7 +13,6 @@ startButton.addEventListener("click", () => {
         return;
     }
 
-    // requestSession вызываем сразу в обработчике клика
     navigator.xr.requestSession("immersive-ar", {
         requiredFeatures: ["hit-test", "dom-overlay"],
         domOverlay: { root: document.body }
@@ -33,16 +32,12 @@ startButton.addEventListener("click", () => {
         function onFrame(time, frame) {
             session.requestAnimationFrame(onFrame);
 
+            // hit-test для логики, без отрисовки цвета
             const hitResults = frame.getHitTestResults(hitTestSource);
             frames++;
-            if (hitResults.length > 0) {
-                hits++;
-                gl.clearColor(0, 1, 0, 1); // зелёный при hit
-            } else {
-                gl.clearColor(0.2, 0.2, 0.2, 1); // серый иначе
-            }
-            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+            if (hitResults.length > 0) hits++;
 
+            // обновление UI
             frameElem.textContent = frames;
             hitElem.textContent = hits;
             rateElem.textContent = ((hits / frames) * 100).toFixed(2) + "%";
