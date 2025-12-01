@@ -1,43 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
-	<head>
-		<title>Lecture 3.12</title>
-		<meta charset="utf-8">
-		<!--favicon -->
-		<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-        <link rel="apple-touch-icon" sizes="180x180" href="../../css/favicon/apple-touch-icon.png">
-        <link rel="icon" type="image/png" sizes="32x32" href="../../css/favicon/favicon-32x32.png">
-        <link rel="icon" type="image/png" sizes="16x16" href="../../css/favicon/favicon-16x16.png">
-        <link rel="manifest" href="../../css/favicon/site.webmanifest">
-        <link rel="mask-icon" href="../../css/favicon/safari-pinned-tab.svg" color="#5bbad5">
-        <meta name="msapplication-TileColor" content="#da532c">
-        <meta name="theme-color" content="#ffffff">
-        <!-- end favicon -->
-		<link type="text/css" rel="stylesheet" href="../../css/common.css">
-        <style>
-            body{
-                margin: 0;
-                padding: 0;
-            }
-        </style>
-	</head>
-	<body>
-        <script src="../../libs/fas.js"></script>
-        <script type="importmap">
-            {
-              "imports": {
-                "three": "../../node_modules/three/build/three.module.js",
-                "three/addons/": "../../node_modules/three/examples/jsm/"
-              }
-            }
-          </script>
-        <script type="module">
-            import { App } from './app.js';
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebXR Hit Test Comparison</title>
+    <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <button id="start-ar" disabled>Start AR Session</button>
 
-            document.addEventListener("DOMContentLoaded", function(){
-                const app = new App();
-                window.app = app;
+    <div id="stats">
+        <h3>Device Info</h3>
+        <p id="device"></p>
+
+        <h3>Hit Test Data</h3>
+        <p>Frame Count: <span id="frameCount">0</span></p>
+        <p>Success Rate: <span id="hitSuccess">0%</span></p>
+        <p>Avg Response Time: <span id="avgLatency">0 ms</span></p>
+    </div>
+
+    <script type="module">
+        import { detectDevice } from "./src/utils/deviceDetection.js";
+        import { logStats, initStats, updateStatsUI } from "./src/utils/statsLogger.js";
+        import { initXR } from "./src/xr/xrSetup.js";
+
+        const startBtn = document.getElementById("start-ar");
+
+        // Detect device and show type
+        const deviceInfo = detectDevice();
+        document.getElementById("device").innerText = `${deviceInfo.name} (${deviceInfo.platform})`;
+
+        initStats();
+
+        if (navigator.xr) {
+            navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
+                if (supported) startBtn.disabled = false;
             });
-        </script>
-	</body>
+        }
+
+        startBtn.addEventListener("click", async () => {
+            const session = await initXR(logStats, updateStatsUI);
+            console.log("WebXR session started:", session);
+        });
+    </script>
+</body>
 </html>
