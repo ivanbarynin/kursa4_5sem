@@ -1,13 +1,26 @@
 export function detectDevice() {
     const ua = navigator.userAgent.toLowerCase();
+    let platform = "Unknown";
+    let name = "Unknown";
+    let mode = "default";
 
-    if (/iphone|ipad|mac/.test(ua)) {
-        return { platform: "iOS", name: "Apple Device" };
+    if (/iphone|ipad|ipod/.test(ua)) {
+        platform = "iOS";
+        name = "Apple Device";
+        mode = navigator.xr ? "webxr-native" : "webxr-viewer";
+    } else if (/android/.test(ua)) {
+        platform = "Android";
+        name = "Android Device";
+        mode = navigator.xr ? "webxr" : "fallback-depth";
+    } else if (/firefox/.test(ua)) {
+        platform = "Desktop/Firefox";
+        name = "Firefox";
+        mode = navigator.xr ? "webxr" : "unsupported";
+    } else if (/chrome/.test(ua)) {
+        platform = "Desktop/Chrome";
+        name = "Chrome";
+        mode = navigator.xr ? "webxr" : "unsupported";
     }
 
-    if (/android/.test(ua)) {
-        return { platform: "Android", name: "Android Device" };
-    }
-
-    return { platform: "Unknown", name: "Desktop/Unsupported" };
+    return { platform, name, mode };
 }

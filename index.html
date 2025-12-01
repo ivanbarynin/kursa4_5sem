@@ -1,47 +1,19 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>WebXR Hit Test Comparison</title>
-    <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <title>Курсовая работа Барынин Иван</title>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <button id="start-ar" disabled>Start AR Session</button>
-
-    <div id="stats">
-        <h3>Device Info</h3>
-        <p id="device"></p>
-
-        <h3>Hit Test Data</h3>
-        <p>Frame Count: <span id="frameCount">0</span></p>
-        <p>Success Rate: <span id="hitSuccess">0%</span></p>
-        <p>Avg Response Time: <span id="avgLatency">0 ms</span></p>
+    <h1>WebXR Hit Test</h1>
+    <div id="device"></div>
+    <button id="startButton">Начать AR сессию</button>
+    <button id="exportCSVButton">Экспортировать в формате CSV</button>
+    <div id="ios-hint" style="display:none; margin-top:10px; background:#222; color:#fff; padding:10px; border-radius:5px;">
+        Ваш Safari не поддерживает WebXR. <br/>
+        Используйте <a href="https://apps.apple.com/app/webxr-viewer/id1295998056" target="_blank">WebXR Viewer</a> для теста AR.
     </div>
-
-    <script type="module">
-        import { detectDevice } from "./src/utils/deviceDetection.js";
-        import { logStats, initStats, updateStatsUI } from "./src/utils/statsLogger.js";
-        import { initXR } from "./src/xr/xrSetup.js";
-
-        const startBtn = document.getElementById("start-ar");
-
-        // Detect device and show type
-        const deviceInfo = detectDevice();
-        document.getElementById("device").innerText = `${deviceInfo.name} (${deviceInfo.platform})`;
-
-        initStats();
-
-        if (navigator.xr) {
-            navigator.xr.isSessionSupported("immersive-ar").then((supported) => {
-                if (supported) startBtn.disabled = false;
-            });
-        }
-
-        startBtn.addEventListener("click", async () => {
-            const session = await initXR(logStats, updateStatsUI);
-            console.log("WebXR session started:", session);
-        });
-    </script>
+    <script type="module" src="main.js"></script>
 </body>
 </html>

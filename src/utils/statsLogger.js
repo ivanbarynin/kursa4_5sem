@@ -1,29 +1,16 @@
-let stats = {
-    totalFrames: 0,
-    hitCount: 0,
-    latencies: [],
-};
+export function exportCSV(dataRows, filename="hit_test_results.csv") {
+    if (!dataRows || dataRows.length === 0) return;
 
-export function initStats() {
-    stats = { totalFrames: 0, hitCount: 0, latencies: [] };
-}
+    const header = Object.keys(dataRows[0]).join(",");
+    const csv = dataRows.map(row => Object.values(row).join(",")).join("\n");
+    const csvContent = header + "\n" + csv;
 
-export function logStats(success, latency) {
-    stats.totalFrames++;
-    if (success) stats.hitCount++;
-    stats.latencies.push(latency);
-}
+    const blob = new Blob([csvContent], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
 
-export function updateStatsUI() {
-    const successRate = stats.totalFrames
-        ? ((stats.hitCount / stats.totalFrames) * 100).toFixed(2)
-        : 0;
-
-    const avgLatency = stats.latencies.length
-        ? (stats.latencies.reduce((a,b)=>a+b,0) / stats.latencies.length).toFixed(2)
-        : 0;
-
-    document.getElementById("frameCount").innerText = stats.totalFrames;
-    document.getElementById("hitSuccess").innerText = `${successRate}%`;
-    document.getElementById("avgLatency").innerText = `${avgLatency} ms`;
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
 }
