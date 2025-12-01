@@ -18,14 +18,13 @@ startButton.addEventListener("click", async () => {
     if (sessionRunning) return;
     sessionRunning = true;
     startButton.disabled = true;
-    startButton.textContent = "Начинаем AR сессию...";
+    startButton.textContent = "Starting AR...";
 
-    // Отображаем device info в консоли
     const deviceInfo = detectDevice();
-    console.log("📱 Информация об устройстве:", deviceInfo);
+    console.log("📱 Device Info:", deviceInfo);
 
     if (!deviceInfo.webXRSupported) {
-        alert("WebXR не поддерживает этот браузер.");
+        alert("WebXR is not supported in this browser.");
         return;
     }
 
@@ -33,36 +32,39 @@ startButton.addEventListener("click", async () => {
     stats = new StatsLogger(deviceInfo);
 
     try {
-        // XR session создаётся сразу после клика пользователя
         const xr = await createXRSession();
         const hitTester = await setupHitTest(xr);
+
+        const gl = xr.gl;
 
         xr.session.requestAnimationFrame(function onFrame(t, frame) {
             xr.session.requestAnimationFrame(onFrame);
 
+            // простая отрисовка фона
+            gl.clearColor(0.2, 0.2, 0.2, 1);
+            gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
             const startTime = performance.now();
-            const success = hitTester(frame);
-            const processingTime = performance.now() - startTime;
+            const success = hitTester(frame, gl);
+            const elapsed = performance.now() - startTime;
 
             metrics.record(success);
-            stats.logFrame(success, processingTime);
+            stats.logFrame(success, elapsed);
 
-            // Обновляем UI
             frameElem.textContent = metrics.frames;
             hitElem.textContent = metrics.hits;
             rateElem.textContent = metrics.successRate.toFixed(2) + "%";
         });
 
     } catch (err) {
-        console.error("❌ XR сессия провалена:", err);
+        console.error("❌ XR Session failed:", err);
         alert("WebXR Init Error:\n" + err.message);
         startButton.disabled = false;
-        startButton.textContent = "Начать сессию";
+        startButton.textContent = "Start Benchmark";
         sessionRunning = false;
     }
 });
 
-// Авто-экспорт результатов при закрытии страницы
 window.onbeforeunload = () => {
     if (stats) exportCSV(metrics);
 };

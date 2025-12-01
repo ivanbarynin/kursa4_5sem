@@ -9,10 +9,14 @@ export async function createXRSession() {
         domOverlay: { root: document.body },
     });
 
-    // Создаём canvas сразу и добавляем в DOM
+    // создаём canvas сразу и делаем его видимым
     const canvas = document.createElement("canvas");
+    canvas.id = "xr-canvas";
     canvas.style.width = "100%";
     canvas.style.height = "100%";
+    canvas.style.position = "absolute";
+    canvas.style.top = "0";
+    canvas.style.left = "0";
     document.body.appendChild(canvas);
 
     const gl = canvas.getContext("webgl", { xrCompatible: true });
