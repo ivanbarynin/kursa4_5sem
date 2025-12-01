@@ -1,37 +1,26 @@
-import { createXRSession } from "./xr/session.js";
-import { setupHitTest } from "./xr/hitTest.js";
-import { Metrics } from "./utils/metrics.js";
-import { exportCSV } from "./utils/csv-export.js";
-
-const startButton = document.getElementById("start");
-const frameElem = document.getElementById("frames");
-const hitElem = document.getElementById("hits");
-const rateElem = document.getElementById("successRate");
-
-let metrics;
-
-startButton.addEventListener("click", async () => {
-    metrics = new Metrics();
-    const xr = await createXRSession();
-
-    const hitTester = await setupHitTest(xr);
-
-    xr.session.requestAnimationFrame(onFrame);
-
-    function onFrame(t, frame) {
-        xr.session.requestAnimationFrame(onFrame);
-
-        const result = hitTester(frame);
-
-        metrics.record(result);
-
-        frameElem.textContent = metrics.frames;
-        hitElem.textContent = metrics.hits;
-        rateElem.textContent = metrics.successRate.toFixed(2) + "%";
+export async function createXRSession() {
+    if (!navigator.xr) {
+        alert("WebXR not supported.");
+        throw new Error("XR not supported");
     }
-});
 
-// Optional: export results when leaving page
-window.onbeforeunload = () => {
-    if (metrics) exportCSV(metrics);
-};
+    const session = await navigator.xr.requestSession("immersive-ar", {
+        requiredFeatures: ["hit-test", "dom-overlay"],
+        domOverlay: { root: document.body },
+    });
+
+    // Создаём canvas сразу и добавляем в DOM
+    const canvas = document.createElement("canvas");
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    document.body.appendChild(canvas);
+
+    const gl = canvas.getContext("webgl", { xrCompatible: true });
+    await gl.makeXRCompatible();
+
+    session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
+
+    const refSpace = await session.requestReferenceSpace("local");
+
+    return { session, gl, refSpace };
+}

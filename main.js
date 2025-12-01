@@ -15,17 +15,17 @@ let stats;
 let sessionRunning = false;
 
 startButton.addEventListener("click", async () => {
-
     if (sessionRunning) return;
     sessionRunning = true;
-    startButton.textContent = "Running...";
+    startButton.disabled = true;
+    startButton.textContent = "Начинаем AR сессию...";
 
-    // Detect device
+    // Отображаем device info в консоли
     const deviceInfo = detectDevice();
-    console.log("📱 Device Info:", deviceInfo);
+    console.log("📱 Информация об устройстве:", deviceInfo);
 
     if (!deviceInfo.webXRSupported) {
-        alert("WebXR is not supported in this browser.");
+        alert("WebXR не поддерживает этот браузер.");
         return;
     }
 
@@ -33,14 +33,11 @@ startButton.addEventListener("click", async () => {
     stats = new StatsLogger(deviceInfo);
 
     try {
+        // XR session создаётся сразу после клика пользователя
         const xr = await createXRSession();
         const hitTester = await setupHitTest(xr);
 
-        console.log("🚀 XR session started");
-
-        xr.session.requestAnimationFrame(onFrame);
-
-        function onFrame(time, frame) {
+        xr.session.requestAnimationFrame(function onFrame(t, frame) {
             xr.session.requestAnimationFrame(onFrame);
 
             const startTime = performance.now();
@@ -50,25 +47,22 @@ startButton.addEventListener("click", async () => {
             metrics.record(success);
             stats.logFrame(success, processingTime);
 
-            updateUI();
-        }
+            // Обновляем UI
+            frameElem.textContent = metrics.frames;
+            hitElem.textContent = metrics.hits;
+            rateElem.textContent = metrics.successRate.toFixed(2) + "%";
+        });
 
     } catch (err) {
-        console.error(err);
-        alert("❌ Failed to start AR session: " + err.message);
+        console.error("❌ XR сессия провалена:", err);
+        alert("WebXR Init Error:\n" + err.message);
+        startButton.disabled = false;
+        startButton.textContent = "Начать сессию";
         sessionRunning = false;
-        startButton.textContent = "Start Benchmark";
     }
 });
 
-
-function updateUI() {
-    frameElem.textContent = metrics.frames;
-    hitElem.textContent = metrics.hits;
-    rateElem.textContent = metrics.successRate.toFixed(2) + "%";
-}
-
-// Auto-export on exit
+// Авто-экспорт результатов при закрытии страницы
 window.onbeforeunload = () => {
     if (stats) exportCSV(metrics);
 };
