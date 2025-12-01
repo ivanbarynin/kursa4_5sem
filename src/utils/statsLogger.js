@@ -1,16 +1,22 @@
-export function exportCSV(dataRows, filename="hit_test_results.csv") {
-    if (!dataRows || dataRows.length === 0) return;
+export class StatsLogger {
+    constructor(deviceInfo) {
+        this.device = deviceInfo;
+        this.entries = [];
+        this.startTimestamp = performance.now();
+    }
 
-    const header = Object.keys(dataRows[0]).join(",");
-    const csv = dataRows.map(row => Object.values(row).join(",")).join("\n");
-    const csvContent = header + "\n" + csv;
+    logFrame(success, elapsedTime) {
+        this.entries.push({
+            timestamp: performance.now() - this.startTimestamp,
+            hitSuccess: success,
+            processingTime: elapsedTime
+        });
+    }
 
-    const blob = new Blob([csvContent], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    a.click();
-    URL.revokeObjectURL(url);
+    exportJSON() {
+        return {
+            device: this.device,
+            results: this.entries
+        };
+    }
 }

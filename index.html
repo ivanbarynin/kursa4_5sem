@@ -1,19 +1,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Курсовая работа Барынин Иван</title>
-    <link rel="stylesheet" href="styles.css">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebXR Hit-Test Benchmark</title>
+    <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-    <h1>WebXR Hit Test</h1>
-    <div id="device"></div>
-    <button id="startButton">Начать AR сессию</button>
-    <button id="exportCSVButton">Экспортировать в формате CSV</button>
-    <div id="ios-hint" style="display:none; margin-top:10px; background:#222; color:#fff; padding:10px; border-radius:5px;">
-        Ваш Safari не поддерживает WebXR. <br/>
-        Используйте <a href="https://apps.apple.com/app/webxr-viewer/id1295998056" target="_blank">WebXR Viewer</a> для теста AR.
+
+    <button id="start">Start Benchmark</button>
+
+    <div id="stats">
+        <p>Frames: <span id="frames">0</span></p>
+        <p>Hits: <span id="hits">0</span></p>
+        <p>Success Rate: <span id="successRate">0%</span></p>
     </div>
+
     <script type="module" src="main.js"></script>
 </body>
 </html>

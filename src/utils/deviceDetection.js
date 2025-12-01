@@ -1,26 +1,19 @@
 export function detectDevice() {
-    const ua = navigator.userAgent.toLowerCase();
-    let platform = "Unknown";
-    let name = "Unknown";
-    let mode = "default";
+    const ua = navigator.userAgent;
 
-    if (/iphone|ipad|ipod/.test(ua)) {
-        platform = "iOS";
-        name = "Apple Device";
-        mode = navigator.xr ? "webxr-native" : "webxr-viewer";
-    } else if (/android/.test(ua)) {
-        platform = "Android";
-        name = "Android Device";
-        mode = navigator.xr ? "webxr" : "fallback-depth";
-    } else if (/firefox/.test(ua)) {
-        platform = "Desktop/Firefox";
-        name = "Firefox";
-        mode = navigator.xr ? "webxr" : "unsupported";
-    } else if (/chrome/.test(ua)) {
-        platform = "Desktop/Chrome";
-        name = "Chrome";
-        mode = navigator.xr ? "webxr" : "unsupported";
-    }
+    const isIOS = /iPhone|iPad|iPod/i.test(ua);
+    const isSafari = /Safari/.test(ua) && !/Chrome/.test(ua);
+    const isChrome = /Chrome|CriOS/i.test(ua);
+    const isFirefox = /Firefox/i.test(ua);
 
-    return { platform, name, mode };
+    const deviceInfo = {
+        userAgent: ua,
+        platform: navigator.platform,
+        browser: isSafari ? "Safari" : isChrome ? "Chrome" : isFirefox ? "Firefox" : "Unknown",
+        os: isIOS ? "iOS" : "Android",
+        hasLiDAR: isIOS && (ua.includes("iPhone 12") || ua.includes("iPhone 13") || ua.includes("iPhone 14") || ua.includes("iPhone 15") || ua.includes("iPhone 16")),
+        webXRSupported: "xr" in navigator,
+    };
+
+    return deviceInfo;
 }

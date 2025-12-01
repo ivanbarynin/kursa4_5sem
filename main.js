@@ -1,47 +1,74 @@
-import { detectDevice } from "./src/utils/deviceDetection.js";
-import { startHitTesting } from "./src/xr/hitTest.js";
-import { exportCSV } from "./src/utils/statsLogger.js";
+import { createXRSession } from "./xr/session.js";
+import { setupHitTest } from "./xr/hitTest.js";
+import { Metrics } from "./utils/metrics.js";
+import { exportCSV } from "./utils/csv-export.js";
+import { detectDevice } from "./utils/deviceDetection.js";
+import { StatsLogger } from "./utils/statsLogger.js";
 
-const deviceInfo = detectDevice();
-document.getElementById("device").innerText = `${deviceInfo.name} (${deviceInfo.platform})`;
-console.log("Mode:", deviceInfo.mode);
+const startButton = document.getElementById("start");
+const frameElem = document.getElementById("frames");
+const hitElem = document.getElementById("hits");
+const rateElem = document.getElementById("successRate");
 
-if (deviceInfo.platform === "iOS" && deviceInfo.mode === "webxr-viewer") {
-    document.getElementById("ios-hint").style.display = "block";
-}
+let metrics;
+let stats;
+let sessionRunning = false;
 
-let dataRows = [];
+startButton.addEventListener("click", async () => {
 
-const logStats = (success, ttfh) => {
-    const logRow = {
-        timestamp: new Date().toISOString(),
-        browser: deviceInfo.name,
-        platform: deviceInfo.platform,
-        mode: deviceInfo.mode,
-        ttfh_ms: ttfh ? Math.round(ttfh) : null,
-        success: success ? 1 : 0
-    };
-    dataRows.push(logRow);
-};
+    if (sessionRunning) return;
+    sessionRunning = true;
+    startButton.textContent = "Running...";
 
-document.getElementById("startButton").addEventListener("click", async () => {
-    if (!navigator.xr) {
-        alert("WebXR не поддерживается на этом устройстве/браузере");
+    // Detect device
+    const deviceInfo = detectDevice();
+    console.log("📱 Device Info:", deviceInfo);
+
+    if (!deviceInfo.webXRSupported) {
+        alert("WebXR is not supported in this browser.");
         return;
     }
 
+    metrics = new Metrics();
+    stats = new StatsLogger(deviceInfo);
+
     try {
-        const session = await navigator.xr.requestSession("immersive-ar", {
-            optionalFeatures: ["local-floor", "hit-test", "depth-sensing"]
-        });
-        startHitTesting(session, logStats, deviceInfo);
+        const xr = await createXRSession();
+        const hitTester = await setupHitTest(xr);
+
+        console.log("🚀 XR session started");
+
+        xr.session.requestAnimationFrame(onFrame);
+
+        function onFrame(time, frame) {
+            xr.session.requestAnimationFrame(onFrame);
+
+            const startTime = performance.now();
+            const success = hitTester(frame);
+            const processingTime = performance.now() - startTime;
+
+            metrics.record(success);
+            stats.logFrame(success, processingTime);
+
+            updateUI();
+        }
+
     } catch (err) {
         console.error(err);
-        alert("Не удалось запустить AR сессию: " + err.message);
+        alert("❌ Failed to start AR session: " + err.message);
+        sessionRunning = false;
+        startButton.textContent = "Start Benchmark";
     }
 });
 
-document.getElementById("exportCSVButton").addEventListener("click", () => {
-    if (dataRows.length > 0) exportCSV(dataRows);
-    else alert("Нет данных для экспорта");
-});
+
+function updateUI() {
+    frameElem.textContent = metrics.frames;
+    hitElem.textContent = metrics.hits;
+    rateElem.textContent = metrics.successRate.toFixed(2) + "%";
+}
+
+// Auto-export on exit
+window.onbeforeunload = () => {
+    if (stats) exportCSV(metrics);
+};
