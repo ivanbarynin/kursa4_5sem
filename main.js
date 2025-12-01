@@ -14,55 +14,42 @@ let metrics;
 let stats;
 let sessionRunning = false;
 
-startButton.addEventListener("click", async () => {
-    if (sessionRunning) return;
-    sessionRunning = true;
+startButton.addEventListener("click", () => {
     startButton.disabled = true;
     startButton.textContent = "Starting AR...";
 
-    const deviceInfo = detectDevice();
-    console.log("📱 Device Info:", deviceInfo);
+    // Запуск XR session строго внутри синхронного обработчика
+    navigator.xr.requestSession("immersive-ar", {
+        requiredFeatures: ["hit-test", "dom-overlay"],
+        domOverlay: { root: document.body }
+    }).then(async (session) => {
+        const canvas = document.getElementById("xr-canvas");
+        const gl = canvas.getContext("webgl", { xrCompatible: true });
+        await gl.makeXRCompatible();
+        session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
 
-    if (!deviceInfo.webXRSupported) {
-        alert("WebXR is not supported in this browser.");
-        return;
-    }
+        const refSpace = await session.requestReferenceSpace("local");
 
-    metrics = new Metrics();
-    stats = new StatsLogger(deviceInfo);
+        const viewerSpace = await session.requestReferenceSpace("viewer");
+        const hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
 
-    try {
-        const xr = await createXRSession();
-        const hitTester = await setupHitTest(xr);
+        function onFrame(time, frame) {
+            session.requestAnimationFrame(onFrame);
 
-        const gl = xr.gl;
+            const hits = frame.getHitTestResults(hitTestSource);
+            if (hits.length > 0) gl.clearColor(0, 1, 0, 1);
+            else gl.clearColor(0.2, 0.2, 0.2, 1);
 
-        xr.session.requestAnimationFrame(function onFrame(t, frame) {
-            xr.session.requestAnimationFrame(onFrame);
-
-            // простая отрисовка фона
-            gl.clearColor(0.2, 0.2, 0.2, 1);
             gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+        }
 
-            const startTime = performance.now();
-            const success = hitTester(frame, gl);
-            const elapsed = performance.now() - startTime;
-
-            metrics.record(success);
-            stats.logFrame(success, elapsed);
-
-            frameElem.textContent = metrics.frames;
-            hitElem.textContent = metrics.hits;
-            rateElem.textContent = metrics.successRate.toFixed(2) + "%";
-        });
-
-    } catch (err) {
-        console.error("❌ XR Session failed:", err);
+        session.requestAnimationFrame(onFrame);
+    }).catch((err) => {
+        console.error("XR session failed:", err);
         alert("WebXR Init Error:\n" + err.message);
         startButton.disabled = false;
         startButton.textContent = "Start Benchmark";
-        sessionRunning = false;
-    }
+    });
 });
 
 window.onbeforeunload = () => {
