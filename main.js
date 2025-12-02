@@ -1,54 +1,96 @@
+import { detectDevice } from "./src/utils/deviceDetection.js";
+import { Metrics } from "./src/utils/metrics.js";
+import { StatsLogger } from "./src/utils/statsLogger.js";
+import { exportCSV } from "./src/utils/csv-exports.js";
+
 const startButton = document.getElementById("start");
 const canvas = document.getElementById("xr-canvas");
+
 const frameElem = document.getElementById("frames");
 const hitElem = document.getElementById("hits");
 const rateElem = document.getElementById("successRate");
 
-startButton.addEventListener("click", () => {
+let metrics = new Metrics();
+let logger = new StatsLogger(detectDevice());
+let xrSession, gl, hitTestSource, refSpace;
+
+startButton.addEventListener("click", async () => {
     startButton.disabled = true;
     startButton.textContent = "Starting AR...";
 
     if (!navigator.xr) {
-        alert("WebXR not supported on this device");
+        alert("WebXR not supported.");
+        startButton.disabled = false;
         return;
     }
 
-    navigator.xr.requestSession("immersive-ar", {
-        requiredFeatures: ["hit-test", "dom-overlay"],
-        domOverlay: { root: document.body }
-    }).then(async session => {
+    try {
+        xrSession = await navigator.xr.requestSession("immersive-ar", {
+            requiredFeatures: ["hit-test"],
+            optionalFeatures: ["dom-overlay", "depth-sensing", "anchors"],
+            domOverlay: { root: document.body },
+            depthSensing: {
+                usagePreference: ["cpu-optimized", "gpu-optimized"],
+                dataFormatPreference: ["luminance-alpha"]
+            }
+        });
 
-        const gl = canvas.getContext("webgl", { xrCompatible: true });
+        gl = canvas.getContext("webgl", { xrCompatible: true });
         await gl.makeXRCompatible();
-        session.updateRenderState({ baseLayer: new XRWebGLLayer(session, gl) });
 
-        const refSpace = await session.requestReferenceSpace("local");
-        const viewerSpace = await session.requestReferenceSpace("viewer");
-        const hitTestSource = await session.requestHitTestSource({ space: viewerSpace });
+        xrSession.updateRenderState({
+            baseLayer: new XRWebGLLayer(xrSession, gl)
+        });
 
-        let frames = 0;
-        let hits = 0;
+        refSpace = await xrSession.requestReferenceSpace("local");
 
-        function onFrame(time, frame) {
-            session.requestAnimationFrame(onFrame);
+        const viewerSpace = await xrSession.requestReferenceSpace("viewer");
 
-            // hit-test для логики, без отрисовки цвета
-            const hitResults = frame.getHitTestResults(hitTestSource);
-            frames++;
-            if (hitResults.length > 0) hits++;
-
-            // обновление UI
-            frameElem.textContent = frames;
-            hitElem.textContent = hits;
-            rateElem.textContent = ((hits / frames) * 100).toFixed(2) + "%";
+        // Android fallback API check
+        if (xrSession.requestHitTestSource) {
+            hitTestSource = await xrSession.requestHitTestSource({ space: viewerSpace });
+        } else if (xrSession.requestHitTestSourceForTransientInput) {
+            hitTestSource = await xrSession.requestHitTestSourceForTransientInput({ profile: "generic-touchscreen" });
+        } else {
+            alert("Hit-Test API not available.");
+            startButton.disabled = false;
+            return;
         }
 
-        session.requestAnimationFrame(onFrame);
+        xrSession.requestAnimationFrame(onFrame);
 
-    }).catch(err => {
-        console.error("XR session failed:", err);
-        alert("WebXR Init Error:\n" + err.message);
+    } catch (err) {
+        alert("WebXR failed: " + err.message);
+        console.error(err);
         startButton.disabled = false;
-        startButton.textContent = "Start Benchmark";
-    });
+    }
 });
+
+function onFrame(time, frame) {
+    xrSession.requestAnimationFrame(onFrame);
+
+    const pose = frame.getViewerPose(refSpace);
+    if (!pose) return;
+
+    const layer = xrSession.renderState.baseLayer;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, layer.framebuffer);
+
+    // Hit test support cross-browser
+    let results = [];
+    if (frame.getHitTestResults) {
+        results = frame.getHitTestResults(hitTestSource);
+    } else if (frame.getHitTestResultsForTransientInput) {
+        results = frame.getHitTestResultsForTransientInput(hitTestSource);
+    }
+
+    const success = results.length > 0;
+    metrics.record(success);
+
+    // UI update
+    frameElem.textContent = metrics.frames;
+    hitElem.textContent = metrics.hits;
+    rateElem.textContent = metrics.successRate.toFixed(2) + "%";
+
+    // logging timing stats
+    logger.logFrame(success, performance.now());
+}
